@@ -6,7 +6,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <fstream>
+#include <vector>
+#include <iostream>
 
+#include <iomanip>
 using namespace std;
 
 uint8_t palette[8 * 3] = {
@@ -39,8 +42,9 @@ int depalette(uint8_t *color)
 	return bestc;
 }
 
-int main(int argc, char **argv)
+int img2carray(int argc, char **argv)
 {
+	// readfile2();
 	ofstream fout;
 	if (argc < 2)
 	{
@@ -111,4 +115,102 @@ int main(int argc, char **argv)
 	fout.close();
 	stbi_image_free(data);
 	return 0;
+}
+
+void readfile()
+{
+	const std::string inputFile = "ota.bin";
+	std::ifstream infile(inputFile, std::ios_base::binary);
+
+	std::vector<char> buffer;
+
+	// get length of file
+	infile.seekg(0, infile.end);
+	size_t length = infile.tellg();
+	infile.seekg(0, infile.beg);
+
+	// read file
+	if (length > 0)
+	{
+		buffer.resize(length);
+		infile.read(&buffer[0], length);
+
+		char buf[16];
+		cout << buffer.size()<<endl;
+		for (int j = 0; j < buffer.size(); j++)
+		{
+			sprintf(buf, "0x%02x, ", (unsigned char)buffer.at(j));
+			cout << string(buf);
+		}
+	}
+}
+void add_file(ofstream out, char const* data, char * buf){
+	sprintf(buf, data);
+	out << string(buf);
+}
+
+void file2carray(int argc, char **argv)
+{
+	ofstream fout, fout2;
+	if (argc < 2)
+	{
+		fprintf(stderr, "Usage: converter [image file] [out file]\n");
+		printf("Press Enter to exit.");
+		getchar();
+	}
+	string filename = argv[1];
+	fout.open(filename+".c");
+	fout2.open(filename+".go");
+	cout << argv[2] << "-" << argv[1] << endl;
+	const std::string inputFile = argv[2];
+	std::ifstream infile(inputFile, std::ios_base::binary);
+	std::vector<char> buffer;
+	// get length of file
+	infile.seekg(0, infile.end);
+	size_t length = infile.tellg();
+	infile.seekg(0, infile.beg);
+	int rows = 200;
+	// read file
+	if (length > 0)
+	{
+		int ota_size = length;
+		cout << length << endl;
+		buffer.resize(length);
+		infile.read(&buffer[0], length);
+		char buf[256];
+		sprintf(buf, "#include \"fw_local.h\" \r\n");
+		fout << string(buf);
+
+		sprintf(buf, "package main \r\n");
+		fout2 << string(buf);
+		sprintf(buf, "uint8_t fw_local[%d] = {\r\n", (int)ota_size);
+		fout << string(buf);
+
+		sprintf(buf, "var fw_local = []byte{\r\n");
+		fout2 << string(buf);
+		for (int j = 0; j < ota_size - 1; j++)
+		{
+			sprintf(buf, "0x%02x, ", (unsigned char)buffer.at(j));
+			// cout << string(buf);
+			fout << string(buf);
+			// sprintf(buf, "0x%02x, ", (unsigned char)buffer.at(j));
+			// cout << string(buf);
+			fout2 << string(buf);
+		}
+		sprintf(buf, "0x%02x ", (unsigned char)buffer.at(ota_size - 1));
+		fout << string(buf);
+		fout2 << string(buf);
+		sprintf(buf, "};\r\n");
+		fout << string(buf);
+		sprintf(buf, "}\r\n");
+		fout2 << string(buf);
+		fout2.close();
+		fout.close();
+	}
+}
+
+int main(int argc, char **argv)
+{
+	// readfile();
+	file2carray(argc, argv);
 }
